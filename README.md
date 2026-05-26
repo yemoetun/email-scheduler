@@ -169,6 +169,33 @@ Open http://localhost:5173 in your browser.
 
 The email sends from your own Gmail at the scheduled time, even if you close the browser (as long as the backend is still running).
 
+> **Note:** This app runs on a local server. The scheduler only works while the backend is running on your machine. If you stop the server, scheduled emails will not be sent — but they are saved in the database and will send as soon as you restart the server. If you want the scheduler to run 24/7 without keeping your computer on, see the [Deployment](#deployment) section below.
+
+---
+
+---
+
+## Deployment
+
+This project is designed to run locally. If you want it running 24/7 so emails always send on time (even when your computer is off), you can deploy it to a cloud server.
+
+**Free options:**
+
+| Platform | Free Tier | Notes |
+|---|---|---|
+| [Railway](https://railway.app) | $5 credit/month | Easiest setup, deploys from GitHub |
+| [Render](https://render.com) | Free web service | Spins down after 15 min inactivity |
+| [Fly.io](https://fly.io) | Generous free tier | Never sleeps, slightly more setup |
+
+**Important:** SQLite does not persist on most cloud platforms (the filesystem resets on redeploy). Before deploying you will need to swap the database to a hosted PostgreSQL instance — [Supabase](https://supabase.com) offers a free Postgres database that works well with this stack.
+
+The core changes needed for deployment are:
+1. Replace `sqlite+aiosqlite:///./email_scheduler.db` in `DATABASE_URL` with a Postgres connection string
+2. Add a `Procfile` or `railway.json` config pointing to `uvicorn main:app --host 0.0.0.0 --port $PORT`
+3. Set all your `.env` variables as environment variables in the platform's dashboard
+4. Update `GOOGLE_REDIRECT_URI` and `FRONTEND_URL` to your deployed URLs
+5. Add the new redirect URI to your Google Cloud OAuth credentials
+
 ---
 
 ## Troubleshooting
