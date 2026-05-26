@@ -106,7 +106,7 @@ function JobsPanel() {
             <tr key={j.id}>
               <td>{j.recipient}</td>
               <td>{j.subject}</td>
-              <td>{new Date(j.scheduled_time).toLocaleString()}</td>
+              <td>{new Date(j.scheduled_time + "Z").toLocaleString()}</td>
               <td><Badge status={j.status} /></td>
             </tr>
           ))}
@@ -171,7 +171,7 @@ function EmailComposer({ user, onLogout }) {
         body: body.trim(),
         scheduled_time: new Date(scheduleAt).toISOString(),
       });
-      setAlert({ type: "success", message: `✅ Email scheduled for ${new Date(scheduleAt).toLocaleString()}` });
+      setAlert({ type: "success", message: `✅ Email scheduled for ${new Date(scheduleAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}` });
       // Reset form
       setTo(""); setCc(""); setPrompt(""); setSubject(""); setBody(""); setScheduleAt("");
       setJobsKey(k => k + 1); // refresh jobs table
@@ -183,7 +183,10 @@ function EmailComposer({ user, onLogout }) {
   };
 
   // Build the minimum datetime string for the picker (now + 1 min)
-  const minDatetime = new Date(Date.now() + 60000).toISOString().slice(0, 16);
+  // Build min datetime in local time (YYYY-MM-DDTHH:MM) for the picker
+  const localNowPlus1Min = new Date(Date.now() + 60000);
+  const pad = (n) => String(n).padStart(2, "0");
+  const minDatetime = `${localNowPlus1Min.getFullYear()}-${pad(localNowPlus1Min.getMonth()+1)}-${pad(localNowPlus1Min.getDate())}T${pad(localNowPlus1Min.getHours())}:${pad(localNowPlus1Min.getMinutes())}`;
 
   return (
     <>
