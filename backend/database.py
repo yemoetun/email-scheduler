@@ -65,6 +65,9 @@ class ScheduledEmail(Base):
     # Which Gmail account is sending
     sender_email = Column(String, nullable=False)
 
+    # File attachments — stored as JSON list of {filename, mime_type, data_b64}
+    attachments = Column(Text, nullable=True)
+
     # Job lifecycle
     status = Column(SAEnum(JobStatus), default=JobStatus.PENDING, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)

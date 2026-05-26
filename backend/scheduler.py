@@ -20,6 +20,8 @@ import logging
 from datetime import datetime
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from google.oauth2.credentials import Credentials
@@ -53,17 +55,30 @@ def _build_gmail_service(job: ScheduledEmail):
     return build("gmail", "v1", credentials=creds, cache_discovery=False)
 
 
-def _create_mime_message(sender: str, to: str, cc: str, subject: str, body: str) -> str:
+def _create_mime_message(sender: str, to: str, cc: str, subject: str, body: str, attachments_json: str = None) -> str:
     """
-    Build a MIME email and encode it as base64url (what Gmail API expects).
+    Build a MIME email (with optional attachments) and encode as base64url.
+    attachments_json is a JSON string: [{filename, mime_type, data_b64}, ...]
     """
-    msg = MIMEMultipart("alternative")
+    # Use "mixed" if there are attachments, otherwise "alternative"
+    attachments = json.loads(attachments_json) if attachments_json else []
+    msg = MIMEMultipart("mixed" if attachments else "alternative")
     msg["From"] = sender
     msg["To"] = to
     if cc:
         msg["Cc"] = cc
     msg["Subject"] = subject
     msg.attach(MIMEText(body, "plain"))
+
+    for att in attachments:
+        mime_type = att.get("mime_type", "application/octet-stream")
+        maintype, subtype = mime_type.split("/", 1) if "/" in mime_type else ("application", "octet-stream")
+        file_data = base64.b64decode(att["data_b64"])
+        part = MIMEBase(maintype, subtype)
+        part.set_payload(file_data)
+        encoders.encode_base64(part)
+        part.add_header("Content-Disposition", "attachment", filename=att["filename"])
+        msg.attach(part)
 
     raw = base64.urlsafe_b64encode(msg.as_bytes()).decode("utf-8")
     return raw
@@ -97,6 +112,7 @@ async def check_and_send_emails():
                     cc=job.cc or "",
                     subject=job.subject,
                     body=job.body,
+                    attachments_json=job.attachments,
                 )
                 service.users().messages().send(
                     userId="me",

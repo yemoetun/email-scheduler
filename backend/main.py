@@ -23,12 +23,13 @@ FastAPI application with four main areas of responsibility:
 
 import os
 import json
+import base64
 import logging
 from datetime import datetime, timezone
 from typing import Optional
 
 import httpx
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse, JSONResponse
 from pydantic import BaseModel
@@ -273,32 +274,28 @@ async def generate_email(body: GenerateRequest, request: Request):
 # 3. SCHEDULING ROUTE
 # ══════════════════════════════════════════════════════════════════════════════
 
-class ScheduleRequest(BaseModel):
-    recipient: str          # "To" email address
-    cc: Optional[str] = ""  # "CC" email address (optional)
-    subject: str
-    body: str               # The (possibly edited) email body
-    scheduled_time: str     # ISO 8601 datetime string, e.g. "2025-06-01T14:30:00"
-
-
 @app.post("/schedule")
 async def schedule_email(
-    body: ScheduleRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
+    recipient: str = Form(...),
+    cc: str = Form(""),
+    subject: str = Form(...),
+    body: str = Form(...),
+    scheduled_time: str = Form(...),
+    files: list[UploadFile] = File(default=[]),
 ):
     """
-    Saves the email job to the database.
+    Saves the email job to the database, including any uploaded attachments.
     The background worker (scheduler.py) will send it at the right time.
     """
     session = get_session(request)
     if not session:
         raise HTTPException(401, "Not logged in")
 
-    # Parse the scheduled time (frontend sends ISO string)
+    # Parse the scheduled time (frontend sends local ISO string)
     try:
-        scheduled_dt = datetime.fromisoformat(body.scheduled_time)
-        # Convert to UTC if timezone-aware
+        scheduled_dt = datetime.fromisoformat(scheduled_time)
         if scheduled_dt.tzinfo is not None:
             scheduled_dt = scheduled_dt.astimezone(timezone.utc).replace(tzinfo=None)
     except ValueError:
@@ -307,16 +304,28 @@ async def schedule_email(
     if scheduled_dt <= datetime.utcnow():
         raise HTTPException(400, "Scheduled time must be in the future.")
 
+    # Read and encode attachments as base64
+    attachments = []
+    for f in files:
+        if f.filename:
+            data = await f.read()
+            attachments.append({
+                "filename": f.filename,
+                "mime_type": f.content_type or "application/octet-stream",
+                "data_b64": base64.b64encode(data).decode("utf-8"),
+            })
+
     job = ScheduledEmail(
-        recipient=body.recipient,
-        cc=body.cc,
-        subject=body.subject,
-        body=body.body,
+        recipient=recipient,
+        cc=cc,
+        subject=subject,
+        body=body,
         scheduled_time=scheduled_dt,
         access_token=session["access_token"],
         refresh_token=session.get("refresh_token"),
         sender_email=session["email"],
         status=JobStatus.PENDING,
+        attachments=json.dumps(attachments) if attachments else None,
     )
     db.add(job)
     await db.commit()

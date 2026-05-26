@@ -126,6 +126,7 @@ function EmailComposer({ user, onLogout }) {
   const [subject, setSubject]   = useState("");
   const [body, setBody]         = useState("");
   const [scheduleAt, setScheduleAt] = useState("");
+  const [attachments, setAttachments] = useState([]); // File objects
 
   // UI state
   const [generating, setGenerating]   = useState(false);
@@ -170,10 +171,10 @@ function EmailComposer({ user, onLogout }) {
         subject: subject.trim(),
         body: body.trim(),
         scheduled_time: new Date(scheduleAt).toISOString(),
-      });
+      }, attachments);
       setAlert({ type: "success", message: `✅ Email scheduled for ${new Date(scheduleAt).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" })}` });
       // Reset form
-      setTo(""); setCc(""); setPrompt(""); setSubject(""); setBody(""); setScheduleAt("");
+      setTo(""); setCc(""); setPrompt(""); setSubject(""); setBody(""); setScheduleAt(""); setAttachments([]);
       setJobsKey(k => k + 1); // refresh jobs table
     } catch (err) {
       setAlert({ type: "error", message: `Scheduling failed: ${err.message}` });
@@ -274,7 +275,31 @@ function EmailComposer({ user, onLogout }) {
 
       {/* ── Step 4: Schedule ── */}
       <div className="card">
-        <h2>4. Schedule</h2>
+        <h2>4. Attachments & Schedule</h2>
+        <div className="field">
+          <label>Attach files (optional)</label>
+          <input
+            type="file"
+            multiple
+            onChange={e => setAttachments(Array.from(e.target.files))}
+            style={{ padding: "0.4rem 0", background: "none", border: "none" }}
+          />
+          {attachments.length > 0 && (
+            <div style={{ marginTop: "0.4rem", fontSize: "0.85rem", color: "#4a5568" }}>
+              {attachments.map((f, i) => (
+                <span key={i} style={{ marginRight: "0.75rem" }}>
+                  📎 {f.name} ({(f.size / 1024).toFixed(1)} KB)
+                </span>
+              ))}
+              <button
+                onClick={() => setAttachments([])}
+                style={{ background: "none", border: "none", color: "#e53e3e", cursor: "pointer", fontSize: "0.85rem" }}
+              >
+                Remove all
+              </button>
+            </div>
+          )}
+        </div>
         <div className="field" style={{ maxWidth: "300px" }}>
           <label>Send at</label>
           <input

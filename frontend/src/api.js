@@ -54,14 +54,25 @@ export async function generateEmail(prompt) {
 /**
  * Schedule an email to be sent at a future time.
  * @param {{ recipient, cc, subject, body, scheduled_time }} payload
+ * @param {File[]} files  Optional array of File objects to attach
  * @returns {{ message, job_id, scheduled_time }}
  */
-export async function scheduleEmail(payload) {
+export async function scheduleEmail(payload, files = []) {
+  // Use FormData so we can send both text fields and file attachments
+  const form = new FormData();
+  form.append("recipient", payload.recipient);
+  form.append("cc", payload.cc || "");
+  form.append("subject", payload.subject);
+  form.append("body", payload.body);
+  form.append("scheduled_time", payload.scheduled_time);
+  for (const file of files) {
+    form.append("files", file);
+  }
   const res = await fetch(`${BASE}/schedule`, {
     method: "POST",
     credentials: "include",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    // Do NOT set Content-Type — browser sets it automatically with boundary for FormData
+    body: form,
   });
   return handleResponse(res);
 }
