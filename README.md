@@ -225,3 +225,4 @@ This project is designed to run locally. If you want it running 24/7 so emails a
 | `ModuleNotFoundError` | Make sure your virtual environment is activated: `source venv/bin/activate` |
 | `greenlet` error on startup | Run `pip install greenlet` inside your virtual environment |
 | Scheduled time shows wrong timezone | The app uses your local timezone — make sure your system clock is correct |
+# test
